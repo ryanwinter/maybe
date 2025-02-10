@@ -29,6 +29,7 @@ en:
     new:
       import_accounts: Import accounts
       method_selector:
+        connected_entry_simplefin: Link Simplefin account
         connected_entry: Link account
         connected_entry_eu: Link EU account
         manual_entry: Enter account balance

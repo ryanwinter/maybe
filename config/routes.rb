@@ -67,6 +67,8 @@ Rails.application.routes.draw do
     resources :mappings, only: :update, module: :import
   end
 
+  resources :simplefin_accounts, only: :index
+
   resources :accounts, only: %i[index new] do
     collection do
       get :summary
