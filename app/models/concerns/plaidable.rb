@@ -31,7 +31,7 @@ module Plaidable
       when :us
         Provider::Plaid.new(Rails.application.config.plaid, :us)
       when :simplefin
-        Provider::Simplefin.new(Rails.application.credentials[:simplefin_access_url])
+        Provider::Simplefin.new(Rails.application.credentials.simplefin_access_url)
       else
         Rails.logger.error "Invalid region: #{region}"
       end

@@ -37,8 +37,8 @@ class SimplefinAccountsController < ApplicationController
     end
 
     def create_access_url()
-      access_url = Rails.application.credentials[:simplefin_access_url]
-      setup_token = Rails.application.credentials[:simplefin_setup_token]
+      access_url = Rails.application.credentials.simplefin_access_url
+      setup_token = Rails.application.credentials.simplefin_setup_token
       new_setup_token = ENV["SIMPLEFIN_SETUP_TOKEN"]
 
       # if we havent generated an access_url yet, or if the setup token has changed, refresh credentials
@@ -52,10 +52,10 @@ class SimplefinAccountsController < ApplicationController
           nil
         end
 
-        Rails.application.credentials[:simplefin_access_url] = response.body
-        Rails.application.credentials[:simplefin_setup_token] = setup_token
+        Rails.application.credentials.simplefin_access_url = response.body
+        Rails.application.credentials.simplefin_setup_token = setup_token
       end
 
-      Rails.application.credentials[:simplefin_access_url]
+      Rails.application.credentials.simplefin_access_url
     end
 end
