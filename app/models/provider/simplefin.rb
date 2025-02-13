@@ -115,6 +115,6 @@ class Provider::Simplefin
       response = conn.get(endpoint, params)
 #      Rails.logger.info("simplefin request=#{access_url}/#{endpoint}?#{params}, response=#{response.body}")
 
-      JSON.parse(response.body, object_class: OpenStruct).accounts
+      return JSON.parse(response.body, object_class: OpenStruct).accounts
     end
 end
