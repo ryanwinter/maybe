@@ -1,15 +1,60 @@
 require "date"
 require "json"
-require "ostruct"
-
-# shortcut to define complex OpenStructs from has
-class Hash
-  def to_o
-    JSON.parse(to_json, object_class: OpenStruct)
-  end
-end
 
 class Provider::Simplefin
+  Account = Struct.new(
+    :account_id,
+    :name,
+    :type,
+    :balances,
+    keyword_init: true  
+  )
+  
+  Balance = Struct.new(
+    :current,
+    :available,
+    :iso_currency_code,
+    keyword_init: true
+  )
+  
+  OrganisationInfo = Struct.new(
+    :institution_id,
+    :institution_name,
+    keyword_init: true
+  )
+  
+  Organisation = Struct.new(
+    :available_products,
+    :billed_products,
+    :item,
+    :accounts,
+    keyword_init: true
+  )
+  
+  FinanceCategory = Struct.new(
+    :primary,
+    keyword_init: true
+  )
+  
+  Transaction = Struct.new(
+    :account_id,
+    :transaction_id,
+    :name,
+    :date,
+    :amount,
+    :merchant_name,
+    :iso_currency_code,
+    :personal_finance_category,
+    keyword_init: true
+  )
+  
+  Transactions = Struct.new(
+    :added,
+    :modified,
+    :removed,
+    keyword_init: true
+  )
+
   def initialize(access_url)
     @access_url = access_url
   end
@@ -27,7 +72,11 @@ class Provider::Simplefin
   end
 
   def get_item_transactions(item)
-    transactions = OpenStruct.new(added: [], modified: [], removed: [])
+    transactions = Transactions.new(
+      added: [], 
+      modified: [], 
+      removed: []
+    )
 
     # get the account list for this financial institution for the request
     accounts = Array.new
@@ -41,20 +90,18 @@ class Provider::Simplefin
     })
 
     response.each do |account|
-      account.transactions.each do |transaction|
-        transactions.added.push({
-          :account_id => account.id,
-          :transaction_id => transaction.id,
-          :name => transaction.description,
-          :date => Time.at(transaction.posted).iso8601,
-          :amount => transaction.amount,
-          :merchant_name => transaction.payee,
-          :iso_currency_code => account.currency,
-          :personal_finance_category => {
-            :primary => "Other" # I'm not sure how to categorize the accounts, this might need to be a manual step
-          }
-        }.to_o)
-      end
+      transactions.added.push(Transacion.new(
+        :account_id => account.id,
+        :transaction_id => transaction.id,
+        :name => transaction.description,
+        :date => Time.at(transaction.posted).iso8601,
+        :amount => transaction.amount,
+        :merchant_name => transaction.payee,
+        :iso_currency_code => account.currency,
+        :personal_finance_category => FinanceCategory.new(
+          :primary => "Other" # I'm not sure how to categorize the accounts, this might need to be a manual step
+        )
+      ))
     end
 
     return transactions
@@ -77,34 +124,33 @@ class Provider::Simplefin
       # extract the info into these formats:
       #   https://plaid.com/docs/api/items/
       #   https://plaid.com/docs/api/accounts/
-      accounts = get("accounts", { "balances-only" => "1" })
-      accounts.each do | account |
-        index = orgs.find_index { |org| org.item.institution_id == account.org.id }
+      response = get("accounts", {
+        "balances-only" => "1" 
+      })
+      response.each do | account |
+        index = orgs.find_index { |org| org.item.institution_id == account["org"]["id"] }
         if index == nil
-          # create the org if it doesnt exist
-          orgs.push({
-            :available_products => "",
+          orgs.push(Organisation.new(
+            :available_products => "nooob",
             :billed_products => "",
-            :item => {
-              :institution_id => account.org.id,
-              :institution_name => account.org.name
-            },
+            :item => OrganisationInfo.new(institution_id: account["org"]["id"], institution_name: account["org"]["name"]),
             :accounts => []
-          }.to_o)
+          ))
+
           index = orgs.length - 1
         end
   
         # add the account to the existing org
-        orgs[index].accounts.push({
-          :account_id => account.id,
-          :name => account.name,
+        orgs[index].accounts.push(Account.new(
+          :account_id => account["id"],
+          :name => account["name"],
           :type => "other", # seems to be no way to detect the account type, just put as Other for now
-          :balances => {
-            :current => account.balance,
+          :balances => Balance.new(
+            :current => account["balance"],
             :available => account["available-balance"],
-            :iso_currency_code => account.currency,
-          }
-        }.to_o)
+            :iso_currency_code => account["currency"]
+          )
+        ))
       end
 
       return orgs
@@ -115,6 +161,6 @@ class Provider::Simplefin
       response = conn.get(endpoint, params)
 #      Rails.logger.info("simplefin request=#{access_url}/#{endpoint}?#{params}, response=#{response.body}")
 
-      return JSON.parse(response.body, object_class: OpenStruct).accounts
+      return JSON.parse(response.body)["accounts"]
     end
 end

@@ -1,0 +1,8 @@
+<%= turbo_frame_tag :simplefin_accounts_lazy do %>
+  <% @items.each do |item| %>
+      <p><%= item.item.institution_name %></p>
+      <% item.accounts.each do |account| %>
+        <p>- <%= account.name %></p>
+      <% end %>
+  <% end %>
+<% end %>

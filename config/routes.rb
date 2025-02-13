@@ -68,6 +68,7 @@ Rails.application.routes.draw do
   end
 
   resources :simplefin_accounts, only: :index
+  get "simplefin_accounts/index_lazy", to: "simplefin_accounts#index_lazy"
 
   resources :accounts, only: %i[index new] do
     collection do
