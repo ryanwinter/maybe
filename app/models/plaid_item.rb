@@ -1,7 +1,7 @@
 class PlaidItem < ApplicationRecord
   include Plaidable, Syncable
 
-  enum :plaid_region, { us: "us", eu: "eu" }
+  enum :plaid_region, { us: "us", eu: "eu", simplefin: "simplefin" }
 
   if Rails.application.credentials.active_record_encryption.present?
     encrypts :access_token, deterministic: true
@@ -36,9 +36,9 @@ class PlaidItem < ApplicationRecord
   end
 
   def sync_data(start_date: nil)
-    update!(last_synced_at: Time.current)
-
     plaid_data = fetch_and_load_plaid_data
+
+    update!(last_synced_at: Time.current)
 
     accounts.each do |account|
       account.sync_later(start_date: start_date)
@@ -59,10 +59,12 @@ class PlaidItem < ApplicationRecord
   private
     def fetch_and_load_plaid_data
       data = {}
-      item = plaid_provider.get_item(access_token).item
+
+      provider = plaid_provider(plaid_region)
+      item = provider.get_item(self).item
       update!(available_products: item.available_products, billed_products: item.billed_products)
 
-      fetched_accounts = plaid_provider.get_item_accounts(self).accounts
+      fetched_accounts = provider.get_item_accounts(self).accounts
       data[:accounts] = fetched_accounts || []
 
       internal_plaid_accounts = fetched_accounts.map do |account|
@@ -125,7 +127,7 @@ class PlaidItem < ApplicationRecord
 
     def safe_fetch_plaid_data(method)
       begin
-        plaid_provider.send(method, self)
+        plaid_provider(plaid_region).send(method, self)
       rescue Plaid::ApiError => e
         Rails.logger.warn("Error fetching #{method} for item #{id}: #{e.message}")
         nil
@@ -133,7 +135,7 @@ class PlaidItem < ApplicationRecord
     end
 
     def remove_plaid_item
-      plaid_provider.remove_item(access_token)
+      plaid_provider(plaid_region).remove_item(self)
     rescue StandardError => e
       Rails.logger.warn("Failed to remove Plaid item #{id}: #{e.message}")
     end

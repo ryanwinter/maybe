@@ -27,13 +27,13 @@ class Provider::Simplefin
   end
 
   def get_item_transactions(item)
+    transactions = OpenStruct.new(added: [], modified: [], removed: [])
+
     # get the account list for this financial institution for the request
     accounts = Array.new
     item.plaid_accounts.each do |account|
       accounts.push(account.plaid_id)
     end
-
-    transactions = OpenStruct.new(added: [], modified: [], removed: [])
 
     response = get("accounts", {
       "start-date" => item.last_synced_at.to_i, 
@@ -57,7 +57,15 @@ class Provider::Simplefin
       end
     end
 
-    transactions
+    return transactions
+  end
+
+  def get_item_investments(item)
+    return OpenStruct.new(holdings: [], transactions: [], securities: [])
+  end
+
+  def get_item_liabilities(item)
+    return OpenStruct.new(credit: [], mortgage: [], student: [])
   end
 
   private
