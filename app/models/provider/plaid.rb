@@ -87,13 +87,13 @@ class Provider::Plaid
     client.item_public_token_exchange(request)
   end
 
-  def get_item(access_token)
-    request = Plaid::ItemGetRequest.new(access_token: access_token)
+  def get_item(item)
+    request = Plaid::ItemGetRequest.new(access_token: item.access_token)
     client.item_get(request)
   end
 
-  def remove_item(access_token)
-    request = Plaid::ItemRemoveRequest.new(access_token: access_token)
+  def remove_item(item)
+    request = Plaid::ItemRemoveRequest.new(access_token: item.access_token)
     client.item_remove(request)
   end
 

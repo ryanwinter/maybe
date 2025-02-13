@@ -2,58 +2,60 @@ class SimplefinAccountsController < ApplicationController
   layout :with_sidebar
 
   def index
-    create_items()
-
-    redirect_to accounts_path, notice: t(".success")
+    if create_items()
+      redirect_to accounts_path, notice: t(".success")
+    else
+      redirect_to accounts_path, alert: t(".error")
+    end
   end
 
   private
+    def create_items()
+      access_url = create_access_url()
 
-  def create_items()
-    update_access_url()
-
-    provider = Provider::Simplefin.new() 
-    accounts = provider.get_accounts()
-    # item = Current.family.plaid_items.find_by(plaid_id: "simplefin")
-    # if item.blank?
-    #   setup_token = ENV["SIMPLEFIN_SETUP_TOKEN"]
-    #   claim_url = Base64.decode64(setup_token)
-  
-    #   response = Faraday.post(claim_url, nil, content_length: 0)
-  
-    #   unless response.success?
-    #     Rails.logger.error "Simplefin invalid/expired setup token, response #{response.body}"
-    #   end
-
-    #   # Current.family.update(simplefin_access_token: response.body)
-    #   item = Current.family.plaid_items.create!(
-    #     name: "Simplefin",
-    #     plaid_id: "simplefin",
-    #     access_token: response.body,
-    #     plaid_region: "simplefin"
-    #   )
-    # end
-
-    # item.sync_later
-  end
-
-  def update_access_url()
-    token = Current.family.simplefin_access_url
-
-    if token.blank?
-      setup_token = ENV["SIMPLEFIN_SETUP_TOKEN"]
-      claim_url = Base64.decode64(setup_token)
-  
-      response = Faraday.post(claim_url, nil, content_length: 0)
-  
-      unless response.success?
-        Rails.logger.error "Simplefin invalid/expired setup token, response #{response.body}"
-        return "Simplefin invalid/expired setup token, response #{response.body}"
+      if access_url.nil?
+        false
       end
 
-      Current.family.update!(simplefin_access_url: response.body)
+      provider = Provider::Simplefin.new(access_url) 
+
+      items = provider.get_items()
+      items.each do | item |
+        # Create the item if it doesn't exist
+        if !Current.family.plaid_items.find_by(plaid_id: item.item.institution_id).present?
+          item = Current.family.plaid_items.create!(
+              plaid_id: item.item.institution_id,
+              name: item.item.institution_name,
+              access_token: "simplefin",
+              plaid_region: "simplefin"
+          )
+          item.sync_later
+        end
+      end
+
+      true
     end
 
-    Rails.logger.info("simplefin token is #{Current.family.simplefin_access_token}")
-  end
+    def create_access_url()
+      access_url = Rails.application.credentials[:simplefin_access_url]
+      setup_token = Rails.application.credentials[:simplefin_setup_token]
+      new_setup_token = ENV["SIMPLEFIN_SETUP_TOKEN"]
+
+      # if we havent generated an access_url yet, or if the setup token has changed, refresh credentials
+      if access_url.blank? || setup_token != new_setup_token
+        setup_token = new_setup_token
+        claim_url = Base64.decode64(setup_token)
+    
+        response = Faraday.post(claim_url, nil, content_length: 0)
+        unless response.success?
+          Rails.logger.error "Simplefin invalid/expired setup token, response #{response.body}"
+          nil
+        end
+
+        Rails.application.credentials[:simplefin_access_url] = response.body
+        Rails.application.credentials[:simplefin_setup_token] = setup_token
+      end
+
+      Rails.application.credentials[:simplefin_access_url]
+    end
 end
