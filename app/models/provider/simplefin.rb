@@ -2,12 +2,29 @@ require "date"
 require "json"
 
 class Provider::Simplefin
+  # Organisational structures
+  Organisation = Struct.new(
+    :institution_id,
+    :institution_name,
+    :available_products,
+    :billed_products,
+     keyword_init: true
+  )
+  
+  OrganisationItem = Struct.new(
+    :item,
+    :accounts,
+    keyword_init: true
+  )
+
+  # Account structures
   Account = Struct.new(
     :account_id,
     :name,
     :type,
+    :subtype,
     :balances,
-    keyword_init: true  
+    keyword_init: true
   )
   
   Balance = Struct.new(
@@ -17,20 +34,7 @@ class Provider::Simplefin
     keyword_init: true
   )
   
-  OrganisationInfo = Struct.new(
-    :institution_id,
-    :institution_name,
-    keyword_init: true
-  )
-  
-  Organisation = Struct.new(
-    :available_products,
-    :billed_products,
-    :item,
-    :accounts,
-    keyword_init: true
-  )
-  
+  # Transactional structures
   FinanceCategory = Struct.new(
     :primary,
     keyword_init: true
@@ -52,6 +56,7 @@ class Provider::Simplefin
     :added,
     :modified,
     :removed,
+    :cursor,
     keyword_init: true
   )
 
@@ -75,7 +80,8 @@ class Provider::Simplefin
     transactions = Transactions.new(
       added: [], 
       modified: [], 
-      removed: []
+      removed: [],
+      cursor: "" # unused, but the plaid_item needs it to be there. Used by Plaid
     )
 
     # get the account list for this financial institution for the request
@@ -90,18 +96,20 @@ class Provider::Simplefin
     })
 
     response.each do |account|
-      transactions.added.push(Transacion.new(
-        :account_id => account.id,
-        :transaction_id => transaction.id,
-        :name => transaction.description,
-        :date => Time.at(transaction.posted).iso8601,
-        :amount => transaction.amount,
-        :merchant_name => transaction.payee,
-        :iso_currency_code => account.currency,
-        :personal_finance_category => FinanceCategory.new(
-          :primary => "Other" # I'm not sure how to categorize the accounts, this might need to be a manual step
-        )
-      ))
+      account["transactions"].each do |transaction|
+        transactions.added.push(Transaction.new(
+          :account_id => account["id"],
+          :transaction_id => transaction["id"],
+          :name => transaction["description"],
+          :date => Time.at(transaction["posted"]).iso8601,
+          :amount => transaction["amount"],
+          :merchant_name => transaction["payee"],
+          :iso_currency_code => account["currency"],
+          :personal_finance_category => FinanceCategory.new(
+            :primary => "Other" # I'm not sure how to categorize the accounts, this might need to be a manual step
+          )
+        ))
+      end
     end
 
     return transactions
@@ -130,10 +138,13 @@ class Provider::Simplefin
       response.each do | account |
         index = orgs.find_index { |org| org.item.institution_id == account["org"]["id"] }
         if index == nil
-          orgs.push(Organisation.new(
-            :available_products => "nooob",
-            :billed_products => "",
-            :item => OrganisationInfo.new(institution_id: account["org"]["id"], institution_name: account["org"]["name"]),
+          orgs.push(OrganisationItem.new(
+            :item => Organisation.new(
+              :institution_id => account["org"]["id"],
+              :institution_name => account["org"]["name"],
+              :available_products => "",
+              :billed_products => ""
+            ),
             :accounts => []
           ))
 
@@ -144,7 +155,8 @@ class Provider::Simplefin
         orgs[index].accounts.push(Account.new(
           :account_id => account["id"],
           :name => account["name"],
-          :type => "other", # seems to be no way to detect the account type, just put as Other for now
+          :type => "other", # seems to be no way to detect the account type, just put as other for now
+          :subtype => "",
           :balances => Balance.new(
             :current => account["balance"],
             :available => account["available-balance"],

@@ -25,7 +25,7 @@ class SimplefinAccountsController < ApplicationController
       provider = Provider::Simplefin.new(access_url) 
       @items = provider.get_items()
 
-      items.each do | item |
+      @items.each do | item |
         # Create the item if it doesn't exist
         if !Current.family.plaid_items.find_by(plaid_id: item.item.institution_id).present?
           item = Current.family.plaid_items.create!(

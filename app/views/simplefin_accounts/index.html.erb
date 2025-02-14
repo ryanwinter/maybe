@@ -1,8 +1,5 @@
 <%= modal_form_wrapper title: t(".title") do %>
-  <p>here are the accounts:</p>
-
   <%= turbo_frame_tag :simplefin_accounts_lazy, src: simplefin_accounts_index_lazy_path, loading: :lazy do %>
-    <p>Temporary content while we're loading...</p>
+    <p>Downloading accounts from Simplefin...</p>
   <% end %>
-
 <% end %>

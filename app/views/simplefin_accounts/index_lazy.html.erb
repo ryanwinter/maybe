@@ -1,8 +1,19 @@
 <%= turbo_frame_tag :simplefin_accounts_lazy do %>
-  <% @items.each do |item| %>
-      <p><%= item.item.institution_name %></p>
-      <% item.accounts.each do |account| %>
-        <p>- <%= account.name %></p>
-      <% end %>
-  <% end %>
+
+  <div class="rounded-xl bg-gray-25 space-y-1 p-1">
+    <div class="border border-alpha-black-25 rounded-md bg-white shadow-xs">
+      <div class="overflow-hidden rounded-md">
+        <% @items.each do |item| %>
+          <h1><%= item.item.institution_name %></h1>
+    
+          <% item.accounts.each do |account| %>
+            <p>- <%= account.name %></p>
+          <% end %>
+    
+          <%= render "simplefin_accounts/ruler" %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
 <% end %>
